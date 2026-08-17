@@ -1,10 +1,10 @@
 from pathlib import Path
+import torch
 from torch.utils.data import Dataset
 from torchvision.io import decode_image
-import torch
 
 
-class CustomImageDataset(Dataset):
+class YoloDetectionDataset(Dataset):
     def __init__(self, data_folder: Path, transform=None):
         self.data_folder = Path(data_folder)
         self.image_dir = self.data_folder / "images"
@@ -60,3 +60,11 @@ class CustomImageDataset(Dataset):
             image, target = self.transform(image, target)
 
         return image, target
+
+
+def detection_collate_fn(batch):
+    images, targets = zip(*batch)
+    return list(images), list(targets)
+
+
+CustomImageDataset = YoloDetectionDataset

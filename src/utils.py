@@ -1,5 +1,5 @@
 from pathlib import Path
-from pathlib import Path
+
 from PIL import Image
 
 def change_file_type(file_path: str | Path) -> Path:
@@ -19,7 +19,41 @@ def change_file_type(file_path: str | Path) -> Path:
 
     return file_path
 
-def convert_to_yolo_format(txt_path: Path):
+
+def load_yolo_label_rows(label_path: str | Path) -> list[tuple[float, float, float, float, float]]:
+    label_path = Path(label_path)
+    rows = []
+
+    with label_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            class_id, x_center, y_center, width, height = map(float, stripped.split())
+            rows.append((class_id, x_center, y_center, width, height))
+
+    return rows
+
+
+def yolo_to_xyxy(
+    x_center: float,
+    y_center: float,
+    width: float,
+    height: float,
+    image_width: int,
+    image_height: int,
+) -> tuple[float, float, float, float]:
+    box_width = width * image_width
+    box_height = height * image_height
+    x_min = (x_center * image_width) - box_width / 2
+    y_min = (y_center * image_height) - box_height / 2
+
+    return x_min, y_min, box_width, box_height
+
+
+def convert_to_yolo_format(txt_path: str | Path) -> Path:
+    txt_path = Path(txt_path)
     output_dir = txt_path.parent.parent / "labels"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -68,3 +102,5 @@ def convert_to_yolo_format(txt_path: Path):
 
     with output_path.open("w", encoding="utf-8") as f:
         f.write("\n".join(converted_lines))
+
+    return output_path
