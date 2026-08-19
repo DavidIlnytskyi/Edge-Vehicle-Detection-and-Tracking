@@ -69,13 +69,19 @@ def plot_annotated_image(
 def visualize_random_samples(
     split_dir: str | Path,
     class_ids: list[int] | None = None,
+    values: list[int] | None = None,
     sample_size: int = 8,
     grid_shape: tuple[int, int] = (2, 4),
 ):
     split_dir = Path(split_dir)
     label_dir = split_dir / "labels"
     image_dir = split_dir / "images"
-    selected_classes = set(CLASS_NAMES if class_ids is None else class_ids)
+    selected_values = class_ids if class_ids is not None else values
+    selected_classes = set(CLASS_NAMES if selected_values is None else selected_values)
+
+    invalid_classes = sorted(class_id for class_id in selected_classes if class_id not in CLASS_NAMES)
+    if invalid_classes:
+        raise ValueError(f"Unknown class ids: {invalid_classes}")
 
     candidates = []
     for image_path in sorted(image_dir.glob("*.jpg")):
@@ -104,4 +110,3 @@ def visualize_random_samples(
 
     fig.tight_layout()
     return fig
-
