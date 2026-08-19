@@ -14,7 +14,7 @@ def change_file_type(file_path: str | Path) -> Path:
     else:
         # images/foo.jpg -> annotations/foo.txt
         file_path = Path(
-            str(file_path.with_suffix(".txt")).replace("images", "annotations")
+            str(file_path.with_suffix(".txt")).replace("images", "labels")
         )
 
     return file_path
