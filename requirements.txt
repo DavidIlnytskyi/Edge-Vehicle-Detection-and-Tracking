@@ -11,3 +11,5 @@ supervision
 onnxruntime
 cleanvision
 pyyaml
+sahi
+yolo-tiling
