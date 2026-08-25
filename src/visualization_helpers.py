@@ -6,6 +6,18 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+def visualize_yolo_prediction(model, image, conf=0.25, imgsz=640):
+    results = model(image, conf=conf, imgsz=imgsz)
+
+    annotated = results[0].plot()
+
+    plt.figure(figsize=(12, 8))
+    plt.imshow(annotated[..., ::-1])
+    plt.axis("off")
+    plt.show()
+
+    return results[0]
+
 def plot_split_summary(summary_df: pd.DataFrame):
     """Plot image and bounding-box counts by split."""
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
