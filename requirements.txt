@@ -13,3 +13,4 @@ cleanvision
 pyyaml
 sahi
 yolo-tiling
+albumentationsx
