@@ -1,4 +1,6 @@
 /data/*
+/data_small_tiled/*
+/data_small/*
 *.zip
 *.log
 *.pt
