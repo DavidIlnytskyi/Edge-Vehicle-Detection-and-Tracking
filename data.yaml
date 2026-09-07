@@ -1,7 +1,6 @@
 path: .
-train: data/VisDrone2019-DET-train/images
-val: data/VisDrone2019-DET-val/images
-test: data/VisDrone2019-DET-test-dev/images
+train: data/images/train
+val: data/images/val
 names:
   0: ignored_regions
   1: pedestrian
