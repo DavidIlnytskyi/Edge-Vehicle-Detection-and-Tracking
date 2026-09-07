@@ -20,48 +20,76 @@ def get_image_size(image_path: str | Path) -> tuple[int, int]:
         return image.size
 
 
-def summarize_split_with_classes(split_dir: str | Path) -> tuple[dict[str, float | int | str], Counter[int]]:
-    """Build a per-split summary and class counter."""
-    split_dir = Path(split_dir)
-    image_count = len(list((split_dir / "images").glob("*.jpg")))
-    label_files = sorted((split_dir / "labels").glob("*.txt"))
-    class_counts: Counter[int] = Counter({class_id: 0 for class_id in CLASS_NAMES})
+def summarize_split_with_classes(
+    data_path: str | Path,
+    split_name: str,
+) -> tuple[dict[str, float | int | str], Counter[int]]:
+
+    data_path = Path(data_path)
+
+    images_dir = data_path / "images" / split_name
+    labels_dir = data_path / "labels" / split_name
+
+    image_paths = list(images_dir.glob("*.jpg"))
+    label_paths = list(labels_dir.glob("*.txt"))
+
+    image_count = len(image_paths)
+
+    class_counts: Counter[int] = Counter({
+        class_id: 0 for class_id in CLASS_NAMES
+    })
+
     box_count = 0
 
-    for label_path in label_files:
+    for label_path in label_paths:
         for class_id, *_ in load_yolo_label_rows(label_path):
             class_counts[int(class_id)] += 1
             box_count += 1
 
     summary = {
-        "split": split_dir.name,
+        "split": split_name,
         "images": image_count,
-        "label_files": len(label_files),
+        "label_files": len(label_paths),
         "boxes": box_count,
-        "avg_boxes_per_image": box_count / image_count if image_count else 0,
+        "avg_boxes_per_image": (
+            round(box_count / image_count, 2)
+            if image_count else 0.0
+        ),
     }
+
     return summary, class_counts
 
 
 def build_split_summary_and_class_counts(
-    data_dir: str | Path,
-) -> tuple[list[Path], pd.DataFrame, dict[str, Counter[int]]]:
-    """Return split directories, a summary dataframe, and per-split class counts."""
-    split_dirs = iter_split_dirs(data_dir)
+    data_path: str | Path,
+) -> tuple[pd.DataFrame, dict[str, Counter[int]]]:
+
     split_summaries = []
     class_distributions = {}
 
-    for split_dir in split_dirs:
-        summary, counts = summarize_split_with_classes(split_dir)
+    for split_name in ["train", "test", "val"]:
+        summary, counts = summarize_split_with_classes(
+            data_path,
+            split_name,
+        )
+
         split_summaries.append(summary)
-        class_distributions[split_dir.name] = counts
+        class_distributions[split_name] = counts
 
-    summary_df = pd.DataFrame(split_summaries).sort_values("images", ascending=False)
+    summary_df = (
+        pd.DataFrame(split_summaries)
+        .sort_values("images", ascending=False)
+        .reset_index(drop=True)
+    )
+
     total_images = summary_df["images"].sum()
-    summary_df["image_share"] = summary_df["images"] / total_images if total_images else 0.0
 
-    return split_dirs, summary_df, class_distributions
+    summary_df["image_share"] = (
+        (summary_df["images"] / total_images).round(2)
+        if total_images else 0.0
+    )
 
+    return summary_df, class_distributions
 
 def build_class_distribution_frame(class_distributions: dict[str, Counter[int]]) -> pd.DataFrame:
     """Convert per-split class counters to a dataframe sorted by total box count."""
@@ -69,51 +97,63 @@ def build_class_distribution_frame(class_distributions: dict[str, Counter[int]])
     class_df["total"] = class_df.sum(axis=1)
     return class_df.sort_values("total", ascending=True)
 
+def collect_bbox_metrics(
+    data_path: str | Path,
+) -> pd.DataFrame:
 
-def collect_bbox_metrics(split_dirs: list[Path]) -> pd.DataFrame:
-    """Collect width, height, area, and aspect-ratio stats for all boxes."""
+    data_path = Path(data_path)
+
     bbox_rows = []
 
-    for split_dir in split_dirs:
-        split_name = split_dir.name
+    for split_name in ["train", "test", "val"]:
+        images_dir = data_path / "images" / split_name
+        labels_dir = data_path / "labels" / split_name
 
-        for label_path in sorted((split_dir / "labels").glob("*.txt")):
-            image_path = change_file_type(label_path)
+        label_paths = sorted(labels_dir.glob("*.txt"))
+
+        for label_path in label_paths:
+            image_path = images_dir / f"{label_path.stem}.jpg"
+
             image_width, image_height = get_image_size(image_path)
 
             for class_id, _, _, norm_width, norm_height in load_yolo_label_rows(label_path):
                 width = norm_width * image_width
                 height = norm_height * image_height
 
-                bbox_rows.append(
-                    {
-                        "split": split_name,
-                        "class_name": CLASS_NAMES[int(class_id)],
-                        "width": width,
-                        "height": height,
-                        "area": width * height,
-                        "aspect_ratio": width / height if height else 0,
-                    }
-                )
+                bbox_rows.append({
+                    "split": split_name,
+                    "class_name": CLASS_NAMES[int(class_id)],
+                    "width": width,
+                    "height": height,
+                    "area": width * height,
+                    "aspect_ratio": width / height if height else 0.0,
+                })
 
     return pd.DataFrame(bbox_rows)
 
+def collect_bbox_size_data(
+    data_path: str | Path,
+) -> tuple[list[dict[str, object]], pd.DataFrame]:
 
-def collect_bbox_size_data(split_dirs: list[Path]) -> tuple[list[dict[str, object]], pd.DataFrame]:
-    """Classify boxes into COCO-style size buckets."""
+    data_path = Path(data_path)
+
     bbox_size_rows = []
 
-    for split_dir in split_dirs:
-        split_name = split_dir.name
-        image_dir = split_dir / "images"
+    for split_name in ["train", "test", "val"]:
+        images_dir = data_path / "images" / split_name
+        labels_dir = data_path / "labels" / split_name
 
-        for label_path in sorted((split_dir / "labels").glob("*.txt")):
-            image_path = image_dir / f"{label_path.stem}.jpg"
+        label_paths = sorted(labels_dir.glob("*.txt"))
+
+        for label_path in label_paths:
+            image_path = images_dir / f"{label_path.stem}.jpg"
+
             image_width, image_height = get_image_size(image_path)
 
             for _, _, _, norm_width, norm_height in load_yolo_label_rows(label_path):
                 width = norm_width * image_width
                 height = norm_height * image_height
+
                 bbox_area_px = width * height
 
                 if bbox_area_px < 32**2:
@@ -123,14 +163,12 @@ def collect_bbox_size_data(split_dirs: list[Path]) -> tuple[list[dict[str, objec
                 else:
                     size_bucket = "large"
 
-                bbox_size_rows.append(
-                    {
-                        "split": split_name,
-                        "path": image_path,
-                        "bbox_area_px": bbox_area_px,
-                        "size_bucket": size_bucket,
-                    }
-                )
+                bbox_size_rows.append({
+                    "split": split_name,
+                    "path": image_path,
+                    "bbox_area_px": bbox_area_px,
+                    "size_bucket": size_bucket,
+                })
 
     return bbox_size_rows, pd.DataFrame(bbox_size_rows)
 
@@ -161,15 +199,24 @@ def summarize_bbox_size_distribution(
     return size_distribution, size_distribution_by_split
 
 
-def inspect_dataset_issues(data_dir: str | Path) -> list[object]:
-    """Run CleanVision inspection for each dataset split."""
+def inspect_dataset_issues(
+    data_path: str | Path,
+) -> list[object]:
+
     from cleanvision import Imagelab
 
+    data_path = Path(data_path)
+
     inspection_results = []
-    for data_file in Path(data_dir).iterdir():
-        imagelab = Imagelab(data_path=str(data_file))
+
+    for split_name in ["train", "test", "val"]:
+        images_dir = data_path / "images" / split_name
+
+        imagelab = Imagelab(data_path=str(images_dir))
+
         imagelab.find_issues()
         imagelab.report()
+
         inspection_results.append(imagelab)
 
     return inspection_results
@@ -177,8 +224,6 @@ def inspect_dataset_issues(data_dir: str | Path) -> list[object]:
 
 def remove_issue_files(inspection_results: list[object], logger: logging.Logger | None = None) -> None:
     """Remove files flagged by CleanVision alongside their matching annotation file."""
-    logger = logger or logging.getLogger(__name__)
-
     for image_lab in inspection_results:
         for issue_path, _issue_data in image_lab.issues.iterrows():
             try:
@@ -187,27 +232,6 @@ def remove_issue_files(inspection_results: list[object], logger: logging.Logger 
                 logger.debug("%s was removed.", issue_path)
             except Exception:
                 logger.debug("Failed to remove %s.", issue_path, exc_info=True)
-
-
-def find_out_of_boundaries_images(split_dirs: list[Path]) -> list[Path]:
-    """Return images whose label rows extend past image boundaries.
-
-    The check mirrors the notebook's original logic to preserve behavior.
-    """
-    out_of_boundaries_images = []
-
-    for split_dir in split_dirs:
-        image_dir = split_dir / "images"
-
-        for label_path in sorted((split_dir / "labels").glob("*.txt")):
-            image_path = image_dir / f"{label_path.stem}.jpg"
-            image_width, image_height = get_image_size(image_path)
-
-            for _, x_0, y_0, width, height in load_yolo_label_rows(label_path):
-                if (x_0 + width) > image_width or (y_0 + height) > image_height:
-                    out_of_boundaries_images.append(image_path)
-
-    return out_of_boundaries_images
 
 
 def collect_small_images(

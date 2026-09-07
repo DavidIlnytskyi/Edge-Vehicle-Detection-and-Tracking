@@ -11,6 +11,7 @@ from PIL import Image
 
 from src.constants import CLASS_NAMES
 from src.utils import load_yolo_label_rows, yolo_to_xyxy
+import numpy as np
 
 
 def plot_annotated_image(
@@ -67,40 +68,58 @@ def plot_annotated_image(
 
 
 def visualize_random_samples(
-    split_dir: str | Path,
+    data_path: str | Path,
+    split_name: str,
     class_ids: list[int] | None = None,
-    values: list[int] | None = None,
     sample_size: int = 8,
     grid_shape: tuple[int, int] = (2, 4),
 ):
-    split_dir = Path(split_dir)
-    label_dir = split_dir / "labels"
-    image_dir = split_dir / "images"
-    selected_values = class_ids if class_ids is not None else values
-    selected_classes = set(CLASS_NAMES if selected_values is None else selected_values)
+    data_path = Path(data_path)
 
-    invalid_classes = sorted(class_id for class_id in selected_classes if class_id not in CLASS_NAMES)
+    image_dir = data_path / "images" / split_name
+    label_dir = data_path / "labels" / split_name
+
+    selected_classes = set(
+        CLASS_NAMES.keys()
+        if class_ids is None
+        else class_ids
+    )
+
+    invalid_classes = sorted(
+        class_id
+        for class_id in selected_classes
+        if class_id not in CLASS_NAMES
+    )
+
     if invalid_classes:
         raise ValueError(f"Unknown class ids: {invalid_classes}")
 
     candidates = []
+
     for image_path in sorted(image_dir.glob("*.jpg")):
         label_path = label_dir / f"{image_path.stem}.txt"
+
         if not label_path.exists():
             continue
 
         rows = load_yolo_label_rows(label_path)
-        if any(int(class_id) in selected_classes for class_id, *_ in rows):
+        if any(
+            int(class_id) in selected_classes
+            for class_id, *_ in rows
+        ):
             candidates.append(image_path)
 
     if not candidates:
-        raise ValueError(f"No samples found for classes {sorted(selected_classes)} in {split_dir}.")
+        raise ValueError(
+            f"No samples found for classes "
+            f"{sorted(selected_classes)} in split '{split_name}'."
+        )
 
     sample_count = min(sample_size, len(candidates))
     sampled_images = random.sample(candidates, sample_count)
 
     fig, axes = plt.subplots(*grid_shape, figsize=(20, 10))
-    axes = axes.flatten()
+    axes = np.asarray(axes).reshape(-1)
 
     for axis, image_path in zip(axes, sampled_images):
         plot_annotated_image(image_path, ax=axis)
@@ -109,4 +128,5 @@ def visualize_random_samples(
         axis.axis("off")
 
     fig.tight_layout()
+
     return fig
