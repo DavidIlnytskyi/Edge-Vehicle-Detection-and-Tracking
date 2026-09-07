@@ -5,10 +5,11 @@ from torchvision.io import decode_image
 
 
 class YoloDetectionDataset(Dataset):
-    def __init__(self, data_folder: Path, transform=None):
+    def __init__(self, data_folder: Path, split_type: str, transform=None):
         self.data_folder = Path(data_folder)
-        self.image_dir = self.data_folder / "images"
-        self.label_dir = self.data_folder / "labels"
+        
+        self.image_dir = self.data_folder / "images" / split_type
+        self.label_dir = self.data_folder / "labels" / split_type
 
         self.images = sorted(self.image_dir.glob("*.jpg"))
         self.transform = transform

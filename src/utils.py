@@ -303,12 +303,27 @@ def yolo_to_xyxy(
     return x_min, y_min, box_width, box_height
 
 
-def convert_to_yolo_format(txt_path: str | Path) -> Path:
-    txt_path = Path(txt_path)
-    output_dir = txt_path.parent.parent / "labels"
-    output_dir.mkdir(parents=True, exist_ok=True)
+def convert_to_yolo_format(
+    txt_path: str | Path,
+    image_path: str | Path | None = None,
+    output_path: str | Path | None = None,
+) -> Path:
+    """Convert one VisDrone annotation file into its corresponding YOLO label.
 
-    image_path = change_file_type(txt_path)
+    ``image_path`` and ``output_path`` are optional for backward compatibility
+    with the original VisDrone ``annotations``/``images`` directory layout.
+    """
+    txt_path = Path(txt_path)
+    if output_path is None:
+        output_dir = txt_path.parent.parent / "labels"
+        output_path = output_dir / txt_path.name
+    else:
+        output_path = Path(output_path)
+
+    if image_path is None:
+        image_path = change_file_type(txt_path)
+    image_path = Path(image_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with Image.open(image_path) as image:
         image_width, image_height = image.size
@@ -348,8 +363,6 @@ def convert_to_yolo_format(txt_path: str | Path) -> Path:
             )
 
             converted_lines.append(converted_line)
-
-    output_path = output_dir / txt_path.name
 
     with output_path.open("w", encoding="utf-8") as f:
         f.write("\n".join(converted_lines))
