@@ -17,4 +17,5 @@ onnxruntime
 yolo-tiling
 albumentationsx
 cleanvision
+supervision
 sahi
