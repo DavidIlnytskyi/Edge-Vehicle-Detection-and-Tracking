@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 import pandas as pd
 import yaml
+import os
 
 from src.constants import CLASS_NAMES
 from src.dataset import YoloDetectionDataset
@@ -358,3 +359,77 @@ def write_data_yaml(
         yaml.safe_dump(data, handle, sort_keys=False)
 
     return output_path
+
+def create_tiler_layout(src, temp):
+    src = Path(src).resolve()
+    temp = Path(temp)
+
+    if temp.exists():
+        shutil.rmtree(temp)
+
+    split_mapping = {
+        "train": "train",
+        "val": "valid",
+        "test": "test",
+    }
+
+    for src_split, dst_split in split_mapping.items():
+        dst_images = temp / dst_split / "images"
+        dst_labels = temp / dst_split / "labels"
+
+        dst_images.mkdir(parents=True)
+        dst_labels.mkdir(parents=True)
+
+        for image in (src / "images" / src_split).iterdir():
+            if image.is_file():
+                os.link(image, dst_images / image.name)
+
+        for label in (src / "labels" / src_split).glob("*.txt"):
+            os.link(label, dst_labels / label.name)
+
+    shutil.copy2(src / "data.yaml", temp / "data.yaml")
+
+def convert_tiler_to_yolo(root):
+    root = Path(root)
+
+    (root / "images").mkdir(exist_ok=True)
+    (root / "labels").mkdir(exist_ok=True)
+
+    split_mapping = {
+        "train": "train",
+        "valid": "val",
+        "test": "test",
+    }
+
+    for tiler_split, yolo_split in split_mapping.items():
+        split_dir = root / tiler_split
+
+        if not split_dir.exists():
+            continue
+
+        shutil.move(
+            split_dir / "images",
+            root / "images" / yolo_split,
+        )
+
+        shutil.move(
+            split_dir / "labels",
+            root / "labels" / yolo_split,
+        )
+
+        split_dir.rmdir()
+
+
+def fix_data_yaml(dataset_dir):
+    dataset_dir = Path(dataset_dir).resolve()
+    yaml_path = dataset_dir / "data.yaml"
+
+    with open(yaml_path, "r") as f:
+        data = yaml.safe_load(f)
+
+    data["path"] = str(dataset_dir)
+
+    with open(yaml_path, "w") as f:
+        yaml.safe_dump(data, f, sort_keys=False)
+
+
