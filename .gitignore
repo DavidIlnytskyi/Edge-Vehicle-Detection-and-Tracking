@@ -2,6 +2,7 @@
 /data_small_tiled/*
 /data_small/*
 /models
+/videos
 docs
 *.zip
 *.log
