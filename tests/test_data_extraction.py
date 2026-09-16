@@ -35,7 +35,8 @@ class ExtractVisDroneArchivesTests(TestCase):
                 )
                 archive.writestr(
                     "VisDrone2019-DET-train/annotations/train_01.txt",
-                    "10,20,30,40,1,4,0,0\n",
+                    "10,20,30,40,1,4,0,0\n"
+                    "50,60,20,30,1,0,0,0\n",
                 )
 
             # The validation archive has no enclosing directory and already

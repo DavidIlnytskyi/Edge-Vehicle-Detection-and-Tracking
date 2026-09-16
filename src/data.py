@@ -79,8 +79,9 @@ def _index_files_by_stem(paths: list[Path], kind: str) -> dict[str, Path]:
 def _build_yolo_split(source_dir: Path, split: str, destination_dir: Path) -> None:
     """Copy one archive into ``images/<split>`` and ``labels/<split>``.
 
-    VisDrone's ``annotations`` are converted to YOLO labels. If an archive
-    already contains a ``labels`` directory, those labels are retained instead.
+    VisDrone's ``annotations`` are converted to YOLO labels, excluding category
+    ``0`` ignored regions. If an archive already contains a ``labels``
+    directory, those labels are retained instead.
     """
     image_paths = _files_in_named_directories(source_dir, {"images"}, _IMAGE_SUFFIXES)
     if not image_paths:
@@ -431,5 +432,4 @@ def fix_data_yaml(dataset_dir):
 
     with open(yaml_path, "w") as f:
         yaml.safe_dump(data, f, sort_keys=False)
-
 

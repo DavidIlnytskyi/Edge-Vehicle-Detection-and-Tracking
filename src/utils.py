@@ -310,6 +310,9 @@ def convert_to_yolo_format(
 ) -> Path:
     """Convert one VisDrone annotation file into its corresponding YOLO label.
 
+    VisDrone category ``0`` denotes an ignored region, not a trainable object,
+    so those rows are omitted from the output label.
+
     ``image_path`` and ``output_path`` are optional for backward compatibility
     with the original VisDrone ``annotations``/``images`` directory layout.
     """
@@ -342,7 +345,13 @@ def convert_to_yolo_format(
             y_min = float(lst[1])
             width = float(lst[2])
             height = float(lst[3])
-            class_id = lst[5]
+            class_id = int(lst[5])
+
+            # In VisDrone, category 0 marks an ignored region rather than an
+            # object class. YOLO has no ignored-region annotation type, and
+            # treating it as a class would train the detector to predict it.
+            if class_id == 0:
+                continue
 
             # Convert top-left + width/height -> center + width/height
             x_center = x_min + width / 2

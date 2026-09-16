@@ -191,12 +191,38 @@ def make_augmentation_policies(seed: int | None = 42) -> dict[str, AugmentationP
             transform=_compose(
                 [
                     *_road_scene_geometry(),
-                    A.CoarseDropout(
-                        num_holes_range=(1, 2),
-                        hole_height_range=(0.03, 0.08),
-                        hole_width_range=(0.03, 0.08),
-                        fill="random_uniform",
-                        p=0.25,
+
+                    A.OneOf(
+                        [
+                            A.ConstrainedCoarseDropout(
+                                num_holes_range=(1, 2),
+                                hole_height_range=(0.2, 0.5),
+                                hole_width_range=(0.2, 0.5),
+                                bbox_labels=[
+                                    "pedestrian",
+                                    "people",
+                                    "bicycle",
+                                    "car",
+                                    "van",
+                                    "truck",
+                                    "tricycle",
+                                    "awning_tricycle",
+                                    "bus",
+                                    "motor",
+                                ],
+                                fill="random_uniform",
+                                p=1.0,
+                            ),
+
+                            A.CoarseDropout(
+                                num_holes_range=(1, 3),
+                                hole_height_range=(0.03, 0.12),
+                                hole_width_range=(0.03, 0.12),
+                                fill="random_uniform",
+                                p=1.0,
+                            ),
+                        ],
+                        p=0.35,
                     ),
                 ],
                 None if seed is None else seed + 4,
