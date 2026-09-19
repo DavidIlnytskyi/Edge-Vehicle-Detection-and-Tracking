@@ -3,7 +3,17 @@
 /data_small/*
 /models
 /videos
-docs
+# Publish README evidence and compact previews; retain the large source videos locally.
+/docs/*
+!/docs/*.csv
+!/docs/*.png
+!/docs/obb/
+!/docs/plots/
+!/docs/previews/
+!/docs/tracking/
+/docs/tracking/*
+!/docs/tracking/*.txt
+/csv
 *.zip
 *.log
 *.pt
